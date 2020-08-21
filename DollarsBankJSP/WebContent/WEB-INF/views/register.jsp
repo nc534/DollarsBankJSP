@@ -18,6 +18,18 @@
                     
             <form action="<%= request.getContextPath() %>/register" method="post" class="form">
             	<div class="form-group">
+                     <label for="account">Account</label>
+                     <select name="account">
+                     	<option value="">--Please choose an option--</option>
+    					<option value="savings">Savings</option>
+    					<option value="checking">Checking</option>
+                     </select>
+                </div>
+                <div class="form-group">
+            		<label for="initial_deposit">Amount</label>
+            		<input type="number" name="initial_deposit" required placeholder="0.00" min="0.00" step="0.01"/>
+                </div>
+            	<div class="form-group">
             		<label for="name">Name</label>
             		<input type="text" name="name" required placeholder="name"/>
                 </div>
