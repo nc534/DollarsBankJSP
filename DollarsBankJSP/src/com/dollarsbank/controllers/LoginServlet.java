@@ -51,7 +51,7 @@ public class LoginServlet extends HttpServlet {
 				session.setAttribute("customer", userName);
 				
 				//send user to user account page
-				response.sendRedirect("customer");
+				response.sendRedirect("myaccount");  
 		
 			}else {
 				
