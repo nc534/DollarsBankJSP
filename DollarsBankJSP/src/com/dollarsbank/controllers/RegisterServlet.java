@@ -9,6 +9,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import com.dollarsbank.dao.*;
+import com.dollarsbank.models.Account;
 import com.dollarsbank.models.Customer;
 
 @WebServlet("/register")
@@ -52,10 +53,20 @@ public class RegisterServlet extends HttpServlet {
 			e.printStackTrace();
 		}
 		
+		String account_type = request.getParameter("account");
+		double initial_deposit = Double.parseDouble(request.getParameter("initial_deposit"));
+		
+		Account account = new Account();
+			
+			account.setAccountType(account_type);
+			account.setInitialDeposit(initial_deposit);
+		
 		//only try to insert new user if the check that user doesn't already exist passes
 		if (customerExists == false) {
 			try {
 				dao.registerCustomer(customer);
+				dao.addAccount(customer, account);
+				dao.addTransaction(userId, account_type, "initial_deposit", 0, 0, initial_deposit);
 			}catch (ClassNotFoundException e) {
 				e.printStackTrace();
 			}
