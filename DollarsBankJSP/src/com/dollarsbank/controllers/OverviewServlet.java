@@ -9,6 +9,7 @@ import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 
 import com.dollarsbank.dao.DollarsBankDao;
+import com.dollarsbank.models.Customer;
 
 @WebServlet("/myaccount")
 public class OverviewServlet extends HttpServlet {
@@ -22,29 +23,40 @@ public class OverviewServlet extends HttpServlet {
 		
 				//do not create a new session if session is null
 				HttpSession session = request.getSession(false);
-				String customer = (String) session.getAttribute("customer");
+				DollarsBankDao dao = new DollarsBankDao();
 				
 				//to prevent from accessing page after logging out
 				response.setHeader("Cache-Control", "no-cache, no-store, must-revalidate"); // HTTP 1.1.
 		        response.setHeader("Pragma", "no-cache"); // HTTP 1.0.
 		        response.setDateHeader("Expires", 0);
-		        
-		        DollarsBankDao dao = new DollarsBankDao();
 				
-		        //if the user's session is not null, go to the user account page, else, go to login page
-				if (customer != null) {
-					request.getSession().setAttribute("customer", dao.getCustomerInfo(customer));
-					request.setAttribute("accounts", dao.getAccounts(customer));
-					request.getRequestDispatcher("/WEB-INF/views/overview.jsp").forward(request, response);
-				
-				}else {
+				if(session.getAttribute("customer") instanceof String) {
+					String customer = (String) session.getAttribute("customer");
 					
-					response.sendRedirect("login");
+			        //if the user's session is not null, go to the user account page, else, go to login page
+					if (customer != null) {
+						request.getSession().setAttribute("customer", dao.getCustomerInfo(customer, null));
+						request.setAttribute("accounts", dao.getAccounts(customer));
+						request.getRequestDispatcher("/WEB-INF/views/overview.jsp").forward(request, response);
+					
+					}else {
+						
+						response.sendRedirect("login");
+					}
 				}
-	}
-
-	protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-		doGet(request, response);
+				
+				if(session.getAttribute("customer") instanceof Object) {
+					Customer customer = (Customer) session.getAttribute("customer");
+					
+					if (customer != null) {
+						request.setAttribute("customer", customer);
+						request.setAttribute("accounts", dao.getAccounts(customer.getUserId()));
+						request.getRequestDispatcher("/WEB-INF/views/overview.jsp").forward(request, response);
+					}else {
+						
+						response.sendRedirect("login");
+					}
+				}
 	}
 
 }
