@@ -107,11 +107,11 @@ public class DollarsBankDao {
 		
 	}
 	
-	public Customer getCustomerInfo(String userId) {
+	public Customer getCustomerInfo(String userId, String phone) {
 		
 		Customer customer = new Customer();
 		
-        String customer_info_sql = "SELECT * FROM customer WHERE userid = ?";
+        String customer_info_sql = "SELECT * FROM customer WHERE userid = ? or phone = ?";
 
         try{
         	
@@ -119,6 +119,7 @@ public class DollarsBankDao {
     		
 			PreparedStatement preparedStatement = connection.prepareStatement(customer_info_sql);
             preparedStatement.setString(1, userId);
+            preparedStatement.setString(2, phone);
             ResultSet rs = preparedStatement.executeQuery();
 
             rs.next();
@@ -138,7 +139,7 @@ public class DollarsBankDao {
 	
 	public void addAccount(Customer customer, Account account) {
 		
-		int customer_id = getCustomerInfo(customer.getUserId()).getCustomerId();
+		int customer_id = getCustomerInfo(customer.getUserId(), null).getCustomerId();
 		boolean accountCreated;
 
         String add_account_sql = "Insert into account (customer_id, account_type, account_creation, initial_deposit, account_balance)" +
@@ -155,7 +156,7 @@ public class DollarsBankDao {
             accountCreated = preparedStatement.execute();
 
             if(accountCreated){
-                getAccountInfo(customer_id, account.getAccountType());
+                getAccountInfo(customer_id, account.getAccountType(), 0);
             }
 
         } catch (SQLException e) {
@@ -163,9 +164,35 @@ public class DollarsBankDao {
         }
     }
 	
-	public Account getAccountInfo(int customer_id, String account){
+	public boolean accountExists(String userId, String account_type) {
+        boolean accountExists = false;
 
-        String find_account_sql = "SELECT * from account where customer_id = ? AND account_type = ?";
+        String account_exists_sql = "SELECT * FROM account a INNER JOIN customer c ON c.customer_id = a.customer_id WHERE " +
+                "userid = ? AND account_type = ?";
+
+        try {
+
+        	Connection connection = DollarsBankConnection.getConnection();
+    		
+			PreparedStatement preparedStatement = connection.prepareStatement(account_exists_sql);
+
+            preparedStatement.setString(1, userId);
+            preparedStatement.setString(2, account_type);
+
+            ResultSet rs = preparedStatement.executeQuery();
+
+            accountExists = rs.next();
+
+        }catch (SQLException e) {
+            e.printStackTrace();
+        }
+
+        return  accountExists;
+    }
+	
+	public Account getAccountInfo(int customer_id, String account, int account_id){
+
+        String find_account_sql = "SELECT * from account where customer_id = ? AND (account_type = ? OR account_id = ?)";
 
         Account currentAccount = new Account();
 
@@ -176,6 +203,7 @@ public class DollarsBankDao {
 			PreparedStatement preparedStatement = connection.prepareStatement(find_account_sql);
             preparedStatement.setInt(1, customer_id);
             preparedStatement.setString(2, account);
+            preparedStatement.setInt(3, account_id);
             ResultSet rs = preparedStatement.executeQuery();
 
             rs.next();
@@ -195,7 +223,7 @@ public class DollarsBankDao {
     }
 	
 	public List<Account> getAccounts(String userId) {
-		 int customer_id = getCustomerInfo(userId).getCustomerId();
+		 int customer_id = getCustomerInfo(userId, null).getCustomerId();
 
 	        String get_transactions_sql = "SELECT * from account where customer_id = ?";
 
@@ -219,7 +247,6 @@ public class DollarsBankDao {
 	                account.setAccountBalance(rs.getDouble("account_balance"));
 
 	                accountList.add(account);
-	                System.out.println(accountList);
 	            }
 	        } catch (SQLException e) {
 	            e.printStackTrace();
@@ -233,7 +260,7 @@ public class DollarsBankDao {
 		Connection connection = DollarsBankConnection.getConnection();
 		PreparedStatement preparedStatement = null;
 		
-		int account_id = getAccountInfo(getCustomerInfo(userId).getCustomerId(), account_type).getAccountId();
+		int account_id = getAccountInfo(getCustomerInfo(userId, null).getCustomerId(), account_type, 0).getAccountId();
         boolean transactionCreated;
         String add_transaction_sql;
 
@@ -273,7 +300,7 @@ public class DollarsBankDao {
             transactionCreated = preparedStatement.execute();
 
             if (transactionCreated) {
-                getTransactions(getCustomerInfo(userId).getUserId());
+                getTransactions(getCustomerInfo(userId, null).getUserId());
             }
         }catch (SQLException e){
             e.printStackTrace();
@@ -282,7 +309,7 @@ public class DollarsBankDao {
 	
 	public List<Transaction> getTransactions(String userId) {
 
-        int customer_id = getCustomerInfo(userId).getCustomerId();
+        int customer_id = getCustomerInfo(userId, null).getCustomerId();
 
         String get_transactions_sql = "SELECT c.customer_id, transaction_id, a.account_id, account_type, transaction_date, transfer_from, transfer_to, transaction_type," +
                 "transfer_from, transfer_to," +
@@ -322,6 +349,112 @@ public class DollarsBankDao {
             e.printStackTrace();
         }
         return transactionList;
+    }
+	
+	public boolean updateBalance(double transaction_amount, int account_id, int transaction_id) {
+
+        boolean updated = false;
+
+        String update_balance_sql = "UPDATE account a INNER JOIN transaction t " +
+                "ON a.account_id = t.account_id " +
+                "SET account_balance = " +
+                "case " +
+                "   when transaction_type = 'deposit' then account_balance + " + transaction_amount +
+                "   when transaction_type = 'withdraw' then account_balance - " + transaction_amount +
+                "   else account_balance " +
+                "end " +
+                "where a.account_id = ? AND transaction_id = ?";
+
+        try {
+        	
+        	Connection connection = DollarsBankConnection.getConnection();
+    		PreparedStatement preparedStatement = connection.prepareStatement(update_balance_sql);
+
+            preparedStatement.setInt(1, account_id);
+            preparedStatement.setInt(2, transaction_id);
+
+            //will return false since it is an update
+            updated = preparedStatement.execute();
+
+        }catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return updated;
+    }
+	
+	public boolean updateBalanceFrom(double transaction_amount, int account_id, int transaction_id){
+        boolean updated = false;
+
+        String update_balance_from_sql = "UPDATE account a INNER JOIN transaction t " +
+                "ON a.account_id = t.transfer_from " +
+                "SET account_balance = account_balance - " + transaction_amount +
+                " WHERE a.account_id = ? AND transaction_id = ?";
+
+        try {
+        	
+        	Connection connection = DollarsBankConnection.getConnection();
+    		PreparedStatement preparedStatement = connection.prepareStatement(update_balance_from_sql);
+
+            preparedStatement.setInt(1, account_id);
+            preparedStatement.setInt(2, transaction_id);
+
+            System.out.println(preparedStatement);
+            updated = preparedStatement.execute();
+
+        }catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return updated;
+    }
+
+    public boolean updateBalanceTo(double transaction_amount, int account_id){
+        boolean updated = false;
+
+        String update_balance_to_sql = "UPDATE account a " +
+                "SET account_balance = account_balance + " + transaction_amount +
+                " WHERE account_id = ?";
+
+        try {
+        	
+        	Connection connection = DollarsBankConnection.getConnection();
+    		PreparedStatement preparedStatement = connection.prepareStatement(update_balance_to_sql);
+
+            preparedStatement.setInt(1, account_id);
+
+            System.out.println(preparedStatement);
+            updated = preparedStatement.execute();
+
+        }catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return updated;
+    }
+    
+    public boolean otherCustomerAccount(String phone, int account_id) {
+    	boolean otherAccountExists = false;
+    	
+    	 String check_other_customer_sql = "SELECT * from customer c " + 
+    	 		"inner join account a " + 
+    	 		"on c.customer_id = a.customer_id " + 
+    	 		"where a.account_id = ? and phone = ?";
+    	
+    	 try {
+         	
+         	Connection connection = DollarsBankConnection.getConnection();
+     		PreparedStatement preparedStatement = connection.prepareStatement(check_other_customer_sql);
+
+             preparedStatement.setString(2, phone);
+             preparedStatement.setInt(1, account_id);
+
+             ResultSet rs = preparedStatement.executeQuery();
+ 			
+             otherAccountExists = rs.next();
+             
+         }catch (SQLException e) {
+             e.printStackTrace();
+         }
+    	
+    	return otherAccountExists;
     }
 
 }
