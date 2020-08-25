@@ -10,15 +10,17 @@
 <style><%@include file="/WEB-INF/css/mainstyle.css"%></style>
 <title>Account Overview</title>
 </head>
-<body>
+<body class="customerMain">
 	<div>
 		<nav>
             <div class="bank">Dollars Bank</div>
                 <ul class="nav">
                     <li><a href='<%=request.getContextPath()%>/myaccount' class='link'>Account Overview</a></li>
+                    <li><a href='<%=request.getContextPath()%>/transaction' class='link'>Deposit/Withdraw</a></li>
+                    <li><a href='<%=request.getContextPath()%>/transfer' class='link'>Transfer</a></li>
                     <li><a href='<%=request.getContextPath()%>/transactions' class='link'>Recent Transactions</a></li>
                     <li><a href='<%=request.getContextPath()%>/accountinfo' class='link'>Account Information</a></li>
-                    <li><a href='<%=request.getContextPath()%>/login' class='link'>Log Out</a></li>
+                    <li><a href='<%=request.getContextPath()%>/logout' class='link'>Log Out</a></li>
                 </ul>
         </nav>
 	</div>
@@ -32,8 +34,8 @@
 		    {
 		    	%><div class='accountcontainer'>
 					<div class='balance'>
-						<p>Account: <%out.print(account.getAccountType());%></p>
-	                    <hr />  
+						<p>Account ID: <%out.print(account.getAccountId()); %> </p>
+						<p>Account Type: <%out.print(account.getAccountType());%></p> 
 	                    <p>Balance: $<%out.print(account.getAccountBalance());%></p>
 	                </div>
             	</div>
@@ -41,7 +43,10 @@
 		    }
 		 
 			%>
+			
+			<div class='accountcontainer'>
+				<a href="new-account">OPEN NEW ACCOUNT</a>
+			</div>
     </div>
-
 </body>
 </html>
